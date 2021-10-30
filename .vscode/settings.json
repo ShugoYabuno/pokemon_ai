@@ -1,0 +1,8 @@
+{
+  "[python]": {
+    "editor.tabSize": 2, // インデントレベルは「2」
+    "editor.formatOnSave": true, // 保存時に自動整形を行う
+    "editor.formatOnPaste": true, // ペースト時に自動整形を行わない
+    "editor.formatOnType": false, // 入力後に自動整形を行わない
+  },
+}
