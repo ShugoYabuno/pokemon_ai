@@ -1,4 +1,7 @@
 {
+  "python.pythonPath": "/Users/ShugoYabuno/.local/share/virtualenvs/pokemon-ai-MNhwsIke/bin/python",
+  "python.formatting.provider": "autopep8",
+  "editor.tabSize": 2, // インデントレベルは「2」
   "[python]": {
     "editor.tabSize": 2, // インデントレベルは「2」
     "editor.formatOnSave": true, // 保存時に自動整形を行う
