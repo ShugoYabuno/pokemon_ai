@@ -1,7 +1,8 @@
 import json
 import math
 
-pokemons = json.load(open("./resources/data/formatted/pokemons.json", "r"))
+pokemons = json.load(
+    open("./resources/data/original/poketetsu/pokemons.json", "r"))
 
 
 class Pokemon:
@@ -23,12 +24,12 @@ class Pokemon:
         effort_spd = 252
 
         base_stats = pokemon["base_stats"]
-        hp = self.__calculate_hp(base_stats[0], effort_hp)
-        atk = self.__calculate_stats(base_stats[1], effort_atk)
-        df = self.__calculate_stats(base_stats[2])
-        sp_atk = self.__calculate_stats(base_stats[3], 0.9)
-        sp_df = self.__calculate_stats(base_stats[4])
-        spd = self.__calculate_stats(base_stats[5], effort_spd, 1.1)
+        hp = self.__calculate_hp(base_stats["hp"], effort_hp)
+        atk = self.__calculate_stats(base_stats["atk"], effort_atk)
+        df = self.__calculate_stats(base_stats["df"])
+        sp_atk = self.__calculate_stats(base_stats["sp_atk"], 0.9)
+        sp_df = self.__calculate_stats(base_stats["sp_df"])
+        spd = self.__calculate_stats(base_stats["spd"], effort_spd, 1.1)
         self.base_stats = [hp, atk, df, sp_atk, sp_df, spd]
         self.moves = pokemon["moves"]
 
