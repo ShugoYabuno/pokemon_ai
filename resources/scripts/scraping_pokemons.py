@@ -9,6 +9,13 @@ def checkLeftColumn(_tr, _text):
     return len(_tr.find_all("td")) >= 1 and _tr.find_all("td")[0].get_text() == _text
 
 
+def getATagIndex(_a):
+    pokemonId = re.search(
+        r"\d+\w*$", _a["href"]).group()
+    pokemonIndex = re.sub(r"[a-z]+", "", pokemonId)
+    return int(pokemonIndex)
+
+
 base_url = "https://yakkun.com/swsh/zukan/n"
 i = 1
 pokemons = []
@@ -19,9 +26,8 @@ while i <= max:
     print(i)
 
     response = requests.get(base_url + str(i))
-    i += 1
-    if(response.history):
-        continue
+    # if(response.history):
+    #     continue
 
     soup = BeautifulSoup(response.content, 'html.parser')
 
@@ -33,14 +39,14 @@ while i <= max:
         if _index == 0:
             name = _tr.find("th").get_text()
             print(name)
-        elif checkLeftColumn(_tr, "全国No."):
-            number = int(_tr.find_all("td")[1].get_text())
+        # elif checkLeftColumn(_tr, "全国No."):
+        #     number = int(_tr.find_all("td")[1].get_text())
         elif checkLeftColumn(_tr, "重さ"):
             weight = float(
                 re.search(r"[\d.]+", _tr.find_all("td")[1].get_text()).group())
         elif checkLeftColumn(_tr, "タイプ"):
-            typeEls = _tr.find_all("img")
-            types = [typeEl["alt"] for typeEl in typeEls]
+            typeAs = _tr.find_all("a")
+            types = [getATagIndex(typeA) for typeA in typeAs]
         elif checkLeftColumn(_tr, "英語名"):
             name_en = _tr.find("li").get_text()
         elif _tr.select(".evo_list"):
@@ -52,7 +58,8 @@ while i <= max:
                     findSelf = True
                     findIndex = _index
                 elif findSelf and _item.find("img"):
-                    evolutions.append(_item.find("img")["alt"])
+                    evolutionIndex = getATagIndex(_item.find("a"))
+                    evolutions.append(evolutionIndex)
                 elif findSelf and findIndex + 1 == _index:
                     continue
                 elif findSelf and _item.find("img") is None:
@@ -91,7 +98,8 @@ while i <= max:
         if(_tr.get("id", None) == "past_move"):
             break
         elif _tr.select(".move_name_cell"):
-            moves.append(_tr.select(".move_name_cell")[0].find("a").get_text())
+            moves.append(getATagIndex(
+                _tr.select_one(".move_name_cell").find("a")))
 
     moves = list(set(moves))
 
@@ -101,7 +109,7 @@ while i <= max:
     # path = re.search(r"\w+$", nav.find_all("a").pop()["href"]).group()
 
     pokemon = {
-        "number": number,
+        "index": i,
         "name": name,
         "name_en": name_en,
         "types": types,
@@ -119,6 +127,7 @@ while i <= max:
     }
     pokemons.append(pokemon)
 
+    i += 1
 
 with open("./resources/data/original/poketetsu/pokemons.json", "w") as f:
     json.dump(pokemons, f, ensure_ascii=False)
