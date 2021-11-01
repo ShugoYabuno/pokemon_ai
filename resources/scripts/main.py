@@ -36,7 +36,7 @@ class Pokemon:
     def info(self):
         print(self.name)
         print(self.base_stats)
-        print(self.moves)
+        # print(self.moves)
 
 
 garchomp = Pokemon("ガブリアス")
