@@ -22,6 +22,10 @@ while i <= max:
     name = re.search(r"[^『』]+", name).group()
     print(name)
 
+    name_en = soup.select_one(".narrow.small.right").get_text()
+    name_en = re.search(r"名：.+$", name_en).group()[2:]
+    print(name_en)
+
     move_data = soup.find("table", attrs={"summary": "技データ"})
     move_data_trs = move_data.find_all("tr")
 
@@ -77,6 +81,7 @@ while i <= max:
     move = {
         "index": i,
         "name": name,
+        "name_en": name_en,
         "type": type,
         "category": category,
         "power": power,
