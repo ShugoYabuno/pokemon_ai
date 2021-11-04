@@ -4,6 +4,8 @@ import math
 
 pokemons = json.load(
     open("./resources/data/original/poketetsu/pokemons.json", "r"))
+moves = json.load(
+    open("./resources/data/original/poketetsu/moves.json", "r"))
 
 
 class Pokemon:
@@ -47,8 +49,9 @@ class Pokemon:
             base_stats["sp_df"], _effort["d"], correction_sp_df)
         spd = self._calculate_stats(
             base_stats["spd"], _effort["s"], correction_spd)
-        self.base_stats = [hp, atk, df, sp_atk, sp_df, spd]
-        self.moves = pokemon["moves"]
+        self.stats = [hp, atk, df, sp_atk, sp_df, spd]
+        self.moves = [self._get_move(_index) for _index in pokemon["moves"]]
+        self.types = pokemon["types"]
 
     def _calculate_hp(self, _base_stats, _effort=0, _individual=31, _level=50):
         return math.floor((_base_stats * 2 + _individual + _effort / 4) * _level / 100 + _level + 10)
@@ -57,7 +60,17 @@ class Pokemon:
         return math.floor(((_base_stats * 2 + _individual + _effort / 4) * _level / 100 + 5) * _correction)
 
     def get_stats(self):
-        return self.base_stats
+        return self.stats
+
+    def get_moves(self):
+        return self.moves
+
+    def get_types(self):
+        return self.types
+
+    def _get_move(self, _index):
+        return next(
+            (_move for _move in moves if _move["index"] == _index), None)
 
 
 class PokemonList:
@@ -124,8 +137,49 @@ class PokemonList:
 
     def info(self):
         for _pokemon in self.pokemon_list:
-            print(_pokemon.get_stats())
+            print(_pokemon.get_moves())
 
 
-garchomp = PokemonList("ガブリアス")
-garchomp.info()
+effort = {
+    "h": 4,
+    "a": 252,
+    "b": 0,
+    "c": 0,
+    "d": 0,
+    "s": 252,
+}
+garchomp = Pokemon("ガブリアス", effort, "S")
+tyranitar = Pokemon("バンギラス", effort, "S")
+
+
+class Match:
+    ally: Pokemon
+    enemy: Pokemon
+
+    def __init__(self, _ally: Pokemon, _enemy: Pokemon) -> None:
+        self.ally = _ally
+        self.enemy = _enemy
+
+    def categorize_moves(self):
+        moves = self.ally.get_moves()
+        enemy_types = self.enemy.get_types()
+
+        # move_powers = []
+        status_moves = []
+        atk_moves = []
+        sp_atk_moves = []
+        for _move in moves:
+            compatibilities = _move["compatibilities"]
+            compatibility_ratio = None
+            if _move["category"] != 0:
+                compatibility_ratio = 1
+                for _compatibility in compatibilities:
+                    if _compatibility[0] in enemy_types:
+                        compatibility_ratio = compatibility_ratio * \
+                            _compatibility[1]
+
+            print(f"{_move['name']}: {compatibility_ratio}倍")
+
+
+match = Match(garchomp, tyranitar)
+match.categorize_moves()
