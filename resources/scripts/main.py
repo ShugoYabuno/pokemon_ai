@@ -1,14 +1,48 @@
 import json
 import math
+from typing import Final
+from enum import Enum, auto
+from dataclasses import dataclass
 # import re
 
-pokemons = json.load(
+pokemons: Final = json.load(
     open("./resources/data/original/poketetsu/pokemons.json", "r"))
-moves = json.load(
+moves: Final = json.load(
     open("./resources/data/original/poketetsu/moves.json", "r"))
 
 
+@dataclass
+class Stats:
+    hp: int
+    atk: int
+    df: int
+    sp_atk: int
+    sp_df: int
+    spd: int
+
+
+@dataclass
+class Move:
+    index: int
+    power: int
+    accuracy: int
+    pp: int
+    category: int
+    type: int
+    compatibilities: list[tuple[int, float]]
+
+
+def move_index_to_name(_index: int):
+    return next(
+        (_move["name"] for _move in moves if _move["index"] == _index), None)
+
+
 class Pokemon:
+    name: str
+    stats: Stats
+    types: list[int]
+    moves: list[Move]
+
     def __init__(self, _name, _effort={
         "h": 0,
         "a": 0,
@@ -49,8 +83,8 @@ class Pokemon:
             base_stats["sp_df"], _effort["d"], correction_sp_df)
         spd = self._calculate_stats(
             base_stats["spd"], _effort["s"], correction_spd)
-        self.stats = [hp, atk, df, sp_atk, sp_df, spd]
-        self.moves = [self._get_move(_index) for _index in pokemon["moves"]]
+        self.stats = Stats(hp, atk, df, sp_atk, sp_df, spd)
+        self.moves = self._inject_moves(pokemon["moves"])
         self.types = pokemon["types"]
 
     def _calculate_hp(self, _base_stats, _effort=0, _individual=31, _level=50):
@@ -59,18 +93,76 @@ class Pokemon:
     def _calculate_stats(self, _base_stats, _effort=0, _correction=1.0, _individual=31, _level=50):
         return math.floor(((_base_stats * 2 + _individual + _effort / 4) * _level / 100 + 5) * _correction)
 
-    def get_stats(self):
-        return self.stats
+    def _inject_moves(self, _move_indices: list[int]):
+        move_classes = []
 
-    def get_moves(self):
-        return self.moves
+        for _move_index in _move_indices:
+            move = next(
+                (_move for _move in moves if _move["index"] == _move_index), None)
 
-    def get_types(self):
-        return self.types
+            if move:
+                move = Move(move["index"], move["power"], move["accuracy"],
+                            move["pp"], move["category"], move["type"], move["compatibilities"])
+                move_classes.append(move)
 
-    def _get_move(self, _index):
-        return next(
-            (_move for _move in moves if _move["index"] == _index), None)
+        return move_classes
+
+
+class StatusAilment(Enum):
+    burn: auto()
+    freeze: auto()
+    paralysis: auto()
+    poison: auto()
+    bad_poison: auto()
+    sleep: auto()
+    confusion: auto()
+    curse: auto()
+    encore: auto()
+    flinch: auto()
+    identify: auto()
+    infatuation: auto()
+    leech_seed: auto()
+    mind_reader: auto()
+    lock_on: auto()
+    nightmare: auto()
+    partially_trapped: auto()
+    perish_song: auto()
+    taunt: auto()
+    torment: auto()
+
+
+@dataclass
+class StatsRank:
+    rank = -6 | -5 | -4 | -3 | -2 | -1 | 0 | 1 | 2 | 3 | 4 | 5 | 6
+
+    atk: rank
+    df: rank
+    sp_atk: rank
+    sp_df: rank
+    spd: rank
+
+    def __init__(self) -> None:
+        self.atk = 0
+        self.df = 0
+        self.sp_atk = 0
+        self.sp_df = 0
+        self.sp_df = 0
+        self.spd = 0
+
+
+class BattleState:
+    pokemon: Pokemon
+    max_hp: int
+    remaining_hp: int
+    stats_rank: StatsRank
+    status_ailments: list[StatusAilment]
+
+    def __init__(self, _pokemon: Pokemon) -> None:
+        self.pokemon = _pokemon
+        self.max_hp = _pokemon.stats.hp
+        self.remaining_hp = _pokemon.stats.hp
+        self.stats_rank = StatsRank()
+        self.status_ailments = []
 
 
 class PokemonList:
@@ -135,9 +227,79 @@ class PokemonList:
             }, _pattern[1]))
         self.pokemon_list = pokemons
 
-    def info(self):
-        for _pokemon in self.pokemon_list:
-            print(_pokemon.get_moves())
+    # def info(self):
+    #     for _pokemon in self.pokemon_list:
+    #         print(_pokemon.get_moveIndices())
+
+
+class SingleMatchStates:
+    """
+    ステータスが決定されたポケモン同士の分岐を返す
+    """
+    ally: BattleState
+    enemy: BattleState
+    ally_moves: list[Move]
+    enemy_moves: list[Move]
+    ally_confirmed_moves: list[any]
+    enemy_confirmed_moves: list[any]
+
+    def __init__(self, _ally: Pokemon, _enemy: Pokemon) -> None:
+        self.ally = BattleState(_ally)
+        self.enemy = BattleState(_enemy)
+        self.calc_ally_moves()
+
+    def calc_ally_moves(self):
+        # calculated_moves = []
+        # for _move in self.ally.pokemon.moves:
+        #     compatibility_ratio = self._calc_compatibility_ratio(
+        #         _move.compatibilities, self.enemy.pokemon.types)
+        #     type_match_ratio = 1.5 if _move.type in self.ally.pokemon.types else 1.0
+        #     calculated_power = _move.power * compatibility_ratio * type_match_ratio
+
+        #     calculated_moves.append({
+        #         "index": _move.index,
+        #         "power": calculated_power
+        #     })
+
+        # self.ally_moves = sorted(
+        #     calculated_moves, key=lambda x: x["power"], reverse=True)
+        self.ally_moves = self._calc_moves(
+            self.ally.pokemon.moves, self.ally.pokemon.types, self.enemy.pokemon.types)
+
+        for _move in self.ally_moves:
+            print(f'{move_index_to_name(_move["index"])}: {_move["power"]}')
+
+    def calc_enemy_moves(self):
+        self.enemy_moves = self._calc_moves(
+            self.enemy.pokemon.moves, self.enemy.pokemon.types, self.ally.pokemon.types)
+
+        for _move in self.enemy_moves:
+            print(f'{move_index_to_name(_move["index"])}: {_move["power"]}')
+
+    def _calc_moves(self, _moves: list[Move], _self_types: int, _target_types: int):
+        calculated_moves = []
+        for _move in _moves:
+            compatibility_ratio = self._calc_compatibility_ratio(
+                _move.compatibilities, _target_types)
+            type_match_ratio = 1.5 if _move.type in _self_types else 1.0
+            calculated_power = _move.power * compatibility_ratio * type_match_ratio
+
+            calculated_moves.append({
+                "index": _move.index,
+                "power": calculated_power
+            })
+
+        return sorted(
+            calculated_moves, key=lambda x: x["power"], reverse=True)
+
+    def _calc_compatibility_ratio(self, _compatibilities: list[tuple[int, float]], _enemy_types: list[int]) -> float:
+        compatibility_ratio = 1.00
+        for _compatibility in _compatibilities:
+            if _compatibility[0] in _enemy_types:
+                compatibility_ratio = compatibility_ratio * \
+                    _compatibility[1]
+
+        return compatibility_ratio
 
 
 effort = {
@@ -150,36 +312,6 @@ effort = {
 }
 garchomp = Pokemon("ガブリアス", effort, "S")
 tyranitar = Pokemon("バンギラス", effort, "S")
-
-
-class Match:
-    ally: Pokemon
-    enemy: Pokemon
-
-    def __init__(self, _ally: Pokemon, _enemy: Pokemon) -> None:
-        self.ally = _ally
-        self.enemy = _enemy
-
-    def categorize_moves(self):
-        moves = self.ally.get_moves()
-        enemy_types = self.enemy.get_types()
-
-        # move_powers = []
-        status_moves = []
-        atk_moves = []
-        sp_atk_moves = []
-        for _move in moves:
-            compatibilities = _move["compatibilities"]
-            compatibility_ratio = None
-            if _move["category"] != 0:
-                compatibility_ratio = 1
-                for _compatibility in compatibilities:
-                    if _compatibility[0] in enemy_types:
-                        compatibility_ratio = compatibility_ratio * \
-                            _compatibility[1]
-
-            print(f"{_move['name']}: {compatibility_ratio}倍")
-
-
-match = Match(garchomp, tyranitar)
-match.categorize_moves()
+garchomp_tyranitar = SingleMatchStates(garchomp, tyranitar)
+garchomp_tyranitar.calc_ally_moves()
+garchomp_tyranitar.calc_enemy_moves()

@@ -7,4 +7,7 @@
     "editor.formatOnPaste": true,
     "editor.formatOnType": false,
   },
+  "python.linting.flake8Args": [
+    "--ignore=E501"
+  ]
 }

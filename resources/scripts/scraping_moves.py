@@ -42,7 +42,7 @@ while i <= max:
             if re.search(r"^\d+$", _tr.find_all("td")[0].get_text()):
                 power = int(_tr.find_all("td")[0].get_text())
             else:
-                power = None
+                power = 0
             if re.search(r"^\d+$", _tr.find_all("td")[1].get_text()):
                 accuracy = int(_tr.find_all("td")[1].get_text())
             else:
@@ -53,7 +53,7 @@ while i <= max:
             else:
                 pp = None
             target = _tr.find_all("td")[1].find("a")["href"]
-            target = re.search(r"\d+$", target).group()
+            target = int(re.search(r"\d+$", target).group())
 
     effect_text = soup.find(
         "table", class_="effect_table").find("td").get_text()
