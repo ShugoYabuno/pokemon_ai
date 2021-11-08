@@ -1,5 +1,5 @@
 import json
-import math
+from math import floor
 from typing import Final
 from enum import Enum, auto
 from dataclasses import dataclass
@@ -9,6 +9,23 @@ pokemons: Final = json.load(
     open("./resources/data/original/poketetsu/pokemons.json", "r"))
 moves: Final = json.load(
     open("./resources/data/original/poketetsu/moves.json", "r"))
+
+
+def move_index_to_name(_index: int):
+    return next(
+        (_move["name"] for _move in moves if _move["index"] == _index), None)
+
+
+def half_down(_number):
+    if _number % 1 <= 0.5:
+        return floor(_number)
+    else:
+        return int(_number + 0.5)
+
+
+def json2move(_move: dict):
+    return Move(_move["index"], _move["power"], _move["accuracy"],
+                _move["pp"], _move["category"], _move["type"], _move["compatibilities"])
 
 
 @dataclass
@@ -30,11 +47,6 @@ class Move:
     category: int
     type: int
     compatibilities: list[tuple[int, float]]
-
-
-def move_index_to_name(_index: int):
-    return next(
-        (_move["name"] for _move in moves if _move["index"] == _index), None)
 
 
 class Pokemon:
@@ -88,10 +100,10 @@ class Pokemon:
         self.types = pokemon["types"]
 
     def _calculate_hp(self, _base_stats, _effort=0, _individual=31, _level=50):
-        return math.floor((_base_stats * 2 + _individual + _effort / 4) * _level / 100 + _level + 10)
+        return floor((_base_stats * 2 + _individual + _effort / 4) * _level / 100 + _level + 10)
 
     def _calculate_stats(self, _base_stats, _effort=0, _correction=1.0, _individual=31, _level=50):
-        return math.floor(((_base_stats * 2 + _individual + _effort / 4) * _level / 100 + 5) * _correction)
+        return floor(((_base_stats * 2 + _individual + _effort / 4) * _level / 100 + 5) * _correction)
 
     def _inject_moves(self, _move_indices: list[int]):
         move_classes = []
@@ -101,8 +113,7 @@ class Pokemon:
                 (_move for _move in moves if _move["index"] == _move_index), None)
 
             if move:
-                move = Move(move["index"], move["power"], move["accuracy"],
-                            move["pp"], move["category"], move["type"], move["compatibilities"])
+                move = json2move(move)
                 move_classes.append(move)
 
         return move_classes
@@ -227,70 +238,59 @@ class PokemonList:
             }, _pattern[1]))
         self.pokemon_list = pokemons
 
-    # def info(self):
-    #     for _pokemon in self.pokemon_list:
-    #         print(_pokemon.get_moveIndices())
 
-
+@dataclass
 class SingleMatchStates:
-    """
-    ステータスが決定されたポケモン同士の分岐を返す
-    """
     ally: BattleState
     enemy: BattleState
     ally_moves: list[Move]
     enemy_moves: list[Move]
-    ally_confirmed_moves: list[any]
-    enemy_confirmed_moves: list[any]
+    ally_confirmed_moves: list[Move]
+    enemy_confirmed_moves: list[Move]
 
     def __init__(self, _ally: Pokemon, _enemy: Pokemon) -> None:
         self.ally = BattleState(_ally)
         self.enemy = BattleState(_enemy)
-        self.calc_ally_moves()
+        self.ally_moves = []
+        self.enemy_moves = []
+        self.ally_confirmed_moves = []
+        self.enemy_confirmed_moves = []
 
     def calc_ally_moves(self):
-        # calculated_moves = []
-        # for _move in self.ally.pokemon.moves:
-        #     compatibility_ratio = self._calc_compatibility_ratio(
-        #         _move.compatibilities, self.enemy.pokemon.types)
-        #     type_match_ratio = 1.5 if _move.type in self.ally.pokemon.types else 1.0
-        #     calculated_power = _move.power * compatibility_ratio * type_match_ratio
-
-        #     calculated_moves.append({
-        #         "index": _move.index,
-        #         "power": calculated_power
-        #     })
-
-        # self.ally_moves = sorted(
-        #     calculated_moves, key=lambda x: x["power"], reverse=True)
-        self.ally_moves = self._calc_moves(
-            self.ally.pokemon.moves, self.ally.pokemon.types, self.enemy.pokemon.types)
+        self.ally_moves = self._calc_moves(self.ally, self.enemy)
 
         for _move in self.ally_moves:
-            print(f'{move_index_to_name(_move["index"])}: {_move["power"]}')
+            print(f'{move_index_to_name(_move["index"])}: {_move["damage"]}')
 
     def calc_enemy_moves(self):
-        self.enemy_moves = self._calc_moves(
-            self.enemy.pokemon.moves, self.enemy.pokemon.types, self.ally.pokemon.types)
+        self.enemy_moves = self._calc_moves(self.enemy, self.ally)
 
         for _move in self.enemy_moves:
-            print(f'{move_index_to_name(_move["index"])}: {_move["power"]}')
+            print(f'{move_index_to_name(_move["index"])}: {_move["damage"]}')
 
-    def _calc_moves(self, _moves: list[Move], _self_types: int, _target_types: int):
+    def set_move(self, _name: str, _player=0):
+        move = next(
+            (_move for _move in moves if _move["name"] == _name), None)
+        if move is None:
+            return
+
+        if _player == 0 and len(self.ally_confirmed_moves) <= 3:
+            self.ally_confirmed_moves.append(json2move(move))
+        elif _player == 1 and len(self.ally_confirmed_moves) <= 3:
+            self.enemy_confirmed_moves.append(json2move(move))
+
+    def _calc_moves(self, _self: BattleState, _target: BattleState):
         calculated_moves = []
-        for _move in _moves:
-            compatibility_ratio = self._calc_compatibility_ratio(
-                _move.compatibilities, _target_types)
-            type_match_ratio = 1.5 if _move.type in _self_types else 1.0
-            calculated_power = _move.power * compatibility_ratio * type_match_ratio
+        for _move in _self.pokemon.moves:
+            damage = self._calc_damage(_self, _target, _move)
 
             calculated_moves.append({
                 "index": _move.index,
-                "power": calculated_power
+                "damage": damage
             })
 
         return sorted(
-            calculated_moves, key=lambda x: x["power"], reverse=True)
+            calculated_moves, key=lambda x: x["damage"], reverse=True)
 
     def _calc_compatibility_ratio(self, _compatibilities: list[tuple[int, float]], _enemy_types: list[int]) -> float:
         compatibility_ratio = 1.00
@@ -300,6 +300,40 @@ class SingleMatchStates:
                     _compatibility[1]
 
         return compatibility_ratio
+
+    def _calc_damage(self, _self: BattleState, _target: BattleState, _move: Move):
+        if _move.category == 0:
+            return 0
+
+        level = 50
+        range_ratio = 1
+        parental_bond_ratio = 1
+        whether_ratio = 1
+        critical_ratio = 1
+        random_ratio = 1
+        type_match_ratio = 1.5 if _move.type in _self.pokemon.types else 1
+        compatibility_ratio = self._calc_compatibility_ratio(
+            _move.compatibilities, _target.pokemon.types)
+        burn_ratio = 1
+        m = 1
+        m_protect = 1
+        atk = _self.pokemon.stats.atk if _move.category == 1 else _self.pokemon.stats.sp_atk
+        df = _target.pokemon.stats.df if _move.category == 1 else _target.pokemon.stats.sp_df
+
+        step1 = floor(floor(level * 2 / 5 + 2) * _move.power * atk / df)
+        step2 = floor(step1 / 50 + 2)
+        step3 = half_down(step2 * range_ratio)
+        step4 = half_down(step3 * parental_bond_ratio)
+        step5 = half_down(step4 * whether_ratio)
+        step6 = half_down(step5 * critical_ratio)
+        step7 = floor(step6 * random_ratio)
+        step8 = half_down(step7 * type_match_ratio)
+        step9 = floor(step8 * compatibility_ratio)
+        step10 = half_down(step9 * burn_ratio)
+        step11 = half_down(step10 * m)
+        damage = half_down(step11 * m_protect)
+
+        return damage
 
 
 effort = {
@@ -313,5 +347,9 @@ effort = {
 garchomp = Pokemon("ガブリアス", effort, "S")
 tyranitar = Pokemon("バンギラス", effort, "S")
 garchomp_tyranitar = SingleMatchStates(garchomp, tyranitar)
-garchomp_tyranitar.calc_ally_moves()
-garchomp_tyranitar.calc_enemy_moves()
+print("ガブリアス -> バンギラス")
+garchomp_tyranitar.set_move("じしん")
+garchomp_tyranitar.set_move("つるぎのまい")
+garchomp_tyranitar.set_move("げきりん")
+garchomp_tyranitar.set_move("ステルスロック")
+print(garchomp_tyranitar)
