@@ -44,5 +44,6 @@ class StatsRank:
         self.sp_df = 0
         self.sp_df = 0
         self.spd = 0
-        self.critical_rank = 0
+        self.critical = 0
         self.stockpile = 0
+        self.evasion = 0

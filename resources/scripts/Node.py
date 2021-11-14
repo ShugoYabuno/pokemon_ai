@@ -34,3 +34,101 @@ class Node:
         next_node.information = (
             next_node.private_cards[next_player], tuple(next_node.history))
         return next_node
+
+
+def add_list_to_dict(target_dict, key, value):
+    # 同じ情報集合に属するノードをまとめるためのutility関数です。
+    if key in target_dict.keys():
+        target_dict[key].append(value)
+    else:
+        target_dict[key] = [value]
+
+
+class KuhnPoker:
+    def __init__(self):
+        self.num_players = 2
+        self.deck = [i for i in range(3)]
+        # プレイヤー-1はチャンスプレイヤーを表します。
+        self.information_sets = {player: {}
+                                 for player in range(-1, self.num_players)}
+        self.root = self._build_game_tree()
+
+    def _build_game_tree(self):
+        stack = deque()  # stackを使って深さ優先探索を行います。
+        next_player = -1
+        root = Node(next_player, False)
+        # プレイヤー毎に同じ情報を持つノードをまとめておきます。
+        add_list_to_dict(
+            self.information_sets[next_player], root.information, root)
+        for hand_0 in combinations(self.deck, 1):
+            for hand_1 in combinations(self.deck, 1):
+                if set(hand_0) & set(hand_1):  # 同じカードが配布されていた場合
+                    continue
+                # それぞれp0, p1, chance playerの情報です。
+                private_cards = [hand_0, hand_1, ()]
+                next_player = 0
+                node = root.expand_child_node(str(*hand_0) + ',' + str(
+                    *hand_1), next_player, False, private_cards=private_cards)  # 各行動についてノードを展開します。
+                # 新しく展開したノードを適切な情報集合に加えます。
+                add_list_to_dict(
+                    self.information_sets[next_player], node.information, node)
+                stack.append(node)
+                for action in ["check", "bet"]:  # p0の取りうる行動
+                    next_player = 1
+                    node = node.expand_child_node(action, next_player, False)
+                    add_list_to_dict(
+                        self.information_sets[next_player], node.information, node)
+                    stack.append(node)
+                    if action == "check":
+                        for action in ["check", "bet"]:  # p1の取りうる行動
+                            if action == "check":
+                                utility = self._compute_utility(
+                                    action, next_player, hand_0, hand_1)  # p1がcheckなら利得を計算してゲーム終了です。
+                                next_player = -1  # 終端ノードのプレイヤーは-1とします。
+                                node = node.expand_child_node(
+                                    action, next_player, True, utility)
+                                add_list_to_dict(
+                                    self.information_sets[next_player], node.information, node)
+                                node = stack.pop()
+                            if action == "bet":
+                                next_player = 0
+                                node = node.expand_child_node(
+                                    action, next_player, False)
+                                add_list_to_dict(
+                                    self.information_sets[next_player], node.information, node)
+                                stack.append(node)
+                                for action in ["fold", "call"]:  # player 0 actions
+                                    utility = self._compute_utility(
+                                        action, next_player, hand_0, hand_1)
+                                    next_player = -1
+                                    node = node.expand_child_node(
+                                        action, next_player, True, utility)
+                                    add_list_to_dict(
+                                        self.information_sets[next_player], node.information, node)
+                                    node = stack.pop()
+                    if action == "bet":
+                        stack.append(node)
+                        for action in ["fold", "call"]:  # player 1 actions
+                            utility = self._compute_utility(
+                                action, next_player, hand_0, hand_1)
+                            next_player = -1
+                            node = node.expand_child_node(
+                                action, next_player, True, utility)
+                            add_list_to_dict(
+                                self.information_sets[next_player], node.information, node)
+                            node = stack.pop()
+        return root
+
+    def _compute_utility(self, action, player, hand_0, hand_1):
+        # ルールにしたがって利得を計算します。
+        card_0, card_1 = hand_0[0], hand_1[0]
+        is_win = card_0 > card_1
+        if action == "fold":
+            utility = 1 if player == 1 else -1
+        elif action == "check":
+            utility = 1 if is_win else -1
+        elif action == "call":
+            utility = 2 if is_win else -2
+        else:
+            utility = 0
+        return utility

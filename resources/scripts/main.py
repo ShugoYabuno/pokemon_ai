@@ -1,71 +1,34 @@
-from board.index import Pokemon
+from envs.pokemon import Pokemon, SingleBattle
 
-
-zacian = Pokemon("ザシアンf", {
-    "h": 220,
-    "a": 236,
-    "b": 4,
-    "d": 4,
-    "s": 44
-}, "A")
-zacian.set_move("きゅじゅうざん")
-zacian.set_move("じゃれつく")
-zacian.set_move("インファイト")
-zacian.set_move("つるぎのまい")
-
-zapdos = Pokemon("サンダー", {
+rillaboom = Pokemon("ゴリランダー", {
     "h": 252,
-    "b": 252,
-    "d": 4,
-}, "B")
-zapdos.set_move("ぼうふう")
-zapdos.set_move("ボルトチェンジ")
-zapdos.set_move("でんじは")
-zapdos.set_move("はねやすめ")
-
-garchomp = Pokemon("ガブリアス", {
     "a": 252,
-    "s": 252,
-    "b": 4,
-}, "A")
-garchomp.set_move("じしん")
-garchomp.set_move("スケイルショット")
-garchomp.set_move("みがわり")
-garchomp.set_move("つるぎのまい")
+    "s": 4,
+}, "a")
+rillaboom.set_move("ドラムアタック")
+rillaboom.set_move("じしん")
 
-marowak = Pokemon("ガラガラa", {
+cinderace = Pokemon("エースバーン", {
     "h": 252,
     "a": 252,
     "s": 4,
 }, "A")
-marowak.set_move("フレアドライブ")
-marowak.set_move("ポルターガイスト")
-marowak.set_move("ホネブーメラン")
-marowak.set_move("つるぎのまい")
+cinderace.set_move("ニトロチャージ")
+cinderace.set_move("とびひざげり")
 
-porygon2 = Pokemon("ポリゴン2", {
-    "h": 244,
-    "b": 252,
-    "s": 12,
-}, "B")
-porygon2.set_move("トライアタック")
-porygon2.set_move("イカサマ")
-porygon2.set_move("でんじは")
-porygon2.set_move("じこさいせい")
-
-quagsire = Pokemon("ヌオー", {
+inteleon = Pokemon("インテレオン", {
     "h": 252,
-    "b": 252,
-    "a": 4,
-}, "B")
-quagsire.set_move("じしん")
-quagsire.set_move("カウンター")
-quagsire.set_move("どくどく")
-quagsire.set_move("じこさいせい")
+    "c": 252,
+    "s": 4
+}, "A")
+inteleon.set_move("みずのはどう")
+inteleon.set_move("シャドーボール")
 
-print(zacian)
-print(zapdos)
-print(garchomp)
-print(marowak)
-print(porygon2)
-print(quagsire)
+party0 = (rillaboom, cinderace, inteleon)
+party1 = (rillaboom, cinderace, inteleon)
+
+singleBattle = SingleBattle(party0, party1)
+singleBattle.set_action(0, 5)
+singleBattle.set_action(1, 6)
+singleBattle.advance_turn()
+print(singleBattle)
