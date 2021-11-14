@@ -28,11 +28,13 @@ def json2move(_move: dict):
                 _move["pp"], _move["category"], _move["type"], _move["compatibilities"])
 
 
+@dataclass
 class Pokemon:
     name: str
     stats: Stats
     types: list[int]
-    moves: list[Move]
+    ragal_moves: list[int]
+    usable_moves: list[Move]
 
     def __init__(self, _name, _effort={
         "h": 0,
@@ -63,19 +65,26 @@ class Pokemon:
             correction_spd = 1.1
 
         base_stats = pokemon["base_stats"]
-        hp = self._calculate_hp(base_stats["hp"], _effort["h"])
+        effort_h = _effort["h"] if _effort.get("h", None) else 0
+        effort_a = _effort["a"] if _effort.get("a", None) else 0
+        effort_b = _effort["b"] if _effort.get("b", None) else 0
+        effort_c = _effort["c"] if _effort.get("c", None) else 0
+        effort_d = _effort["d"] if _effort.get("d", None) else 0
+        effort_s = _effort["s"] if _effort.get("s", None) else 0
+        hp = self._calculate_hp(base_stats["hp"], effort_h)
         atk = self._calculate_stats(
-            base_stats["atk"], _effort["a"], correction_atk)
+            base_stats["atk"], effort_a, correction_atk)
         df = self._calculate_stats(
-            base_stats["df"], _effort["b"], correction_df)
+            base_stats["df"], effort_b, correction_df)
         sp_atk = self._calculate_stats(
-            base_stats["sp_atk"], _effort["c"], correction_sp_atk)
+            base_stats["sp_atk"], effort_c, correction_sp_atk)
         sp_df = self._calculate_stats(
-            base_stats["sp_df"], _effort["d"], correction_sp_df)
+            base_stats["sp_df"], effort_d, correction_sp_df)
         spd = self._calculate_stats(
-            base_stats["spd"], _effort["s"], correction_spd)
+            base_stats["spd"], effort_s, correction_spd)
         self.stats = Stats(hp, atk, df, sp_atk, sp_df, spd)
-        self.moves = self._inject_moves(pokemon["moves"])
+        self.ragal_moves = pokemon["moves"]
+        self.usable_moves = []
         self.types = pokemon["types"]
 
     def _calculate_hp(self, _base_stats, _effort=0, _individual=31, _level=50):
@@ -84,24 +93,34 @@ class Pokemon:
     def _calculate_stats(self, _base_stats, _effort=0, _correction=1.0, _individual=31, _level=50):
         return floor(((_base_stats * 2 + _individual + _effort / 4) * _level / 100 + 5) * _correction)
 
-    def _inject_moves(self, _move_indices: list[int]):
-        move_classes = []
+    # def _inject_moves(self, _move_indices: list[int]):
+    #     move_classes = []
 
-        for _move_index in _move_indices:
-            move = next(
-                (_move for _move in moves if _move["index"] == _move_index), None)
+    #     for _move_index in _move_indices:
+    #         move = next(
+    #             (_move for _move in moves if _move["index"] == _move_index), None)
 
-            if move:
-                move = json2move(move)
-                move_classes.append(move)
+    #         if move:
+    #             move = json2move(move)
+    #             move_classes.append(move)
 
-        return move_classes
+    #     return move_classes
+
+    def set_move(self, _name: str):
+        move = next(
+            (_move for _move in moves if _move["name"] == _name), None)
+        if move is None:
+            return
+
+        self.usable_moves.append(json2move(move))
 
 
 class PokemonState:
     pokemon: Pokemon
     max_hp: int
     remaining_hp: int
+    stats: Stats
+    types: list[int]
     stats_rank: StatsRank
     status_ailments: list[StatusAilment]
 
@@ -109,6 +128,8 @@ class PokemonState:
         self.pokemon = _pokemon
         self.max_hp = _pokemon.stats.hp
         self.remaining_hp = _pokemon.stats.hp
+        self.stats = _pokemon.stats
+        self.types = _pokemon.types
         self.stats_rank = StatsRank()
         self.status_ailments = []
 

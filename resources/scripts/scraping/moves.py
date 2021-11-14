@@ -58,6 +58,8 @@ while i <= max:
     effect_text = soup.find(
         "table", class_="effect_table").find("td").get_text()
     effect = re.sub(r"<.+>", "", effect_text)
+    priority_search = re.search(r"優先度:\+\d", effect)
+    priority = int(priority_search.group()[-1:]) if priority_search else 0
 
     compatibilities = []
 
@@ -88,7 +90,8 @@ while i <= max:
         "accuracy": accuracy,
         "pp": pp,
         "target": target,
-        "effect": effect,
+        # "effect": effect,
+        "priority": priority,
         "compatibilities": compatibilities
     }
     moves.append(move)

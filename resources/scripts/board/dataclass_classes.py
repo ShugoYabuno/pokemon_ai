@@ -26,12 +26,16 @@ class Stats:
 @dataclass
 class StatsRank:
     rank = -6 | -5 | -4 | -3 | -2 | -1 | 0 | 1 | 2 | 3 | 4 | 5 | 6
+    three_times_rank = 0 | 1 | 2 | 3
 
     atk: rank
     df: rank
     sp_atk: rank
     sp_df: rank
     spd: rank
+    evasion: rank
+    critical: three_times_rank
+    stockpile: three_times_rank
 
     def __init__(self) -> None:
         self.atk = 0
@@ -40,3 +44,5 @@ class StatsRank:
         self.sp_df = 0
         self.sp_df = 0
         self.spd = 0
+        self.critical_rank = 0
+        self.stockpile = 0
