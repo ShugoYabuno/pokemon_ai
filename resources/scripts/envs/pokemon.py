@@ -167,8 +167,11 @@ class SingleBattle:
     actions: list[SingleBattleActions, SingleBattleActions]
 
     def __init__(self, _party0: list[tuple[Pokemon, Pokemon, Pokemon]], _party1: tuple[Pokemon, Pokemon, Pokemon]) -> None:
-        self.parties = [self._pokemons_to_states(_party0),
-                        self._pokemons_to_states(_party1)]
+        def _pokemons_to_states(_list: tuple[Pokemon, Pokemon, Pokemon]):
+            return [PokemonState(_pokemon) for _pokemon in _list]
+
+        self.parties = [_pokemons_to_states(_party0),
+                        _pokemons_to_states(_party1)]
         self.playing_pokemons = [0, 0]
         self.information = ((), ())
         self._initialize_actions()
@@ -180,25 +183,33 @@ class SingleBattle:
         if None in self.actions:
             raise ValueError("actions includes None")
 
+        # S順に並び替え
+        players_spd_desc = sorted(
+            [0, 1], key=lambda x: self._playing_pokemon_state(x).get_speed(), reverse=True)
+
+        # ポケモンの交代処理
         if self.actions[0] in switch_pokemon_actions or self.actions[1] in switch_pokemon_actions:
             # if self.playing_pokemons[0].get_speed() == self.playing_pokemons[1].get_speed():
             #     sorted_players = shuffle([0, 1])
 
-            for _player in self._sorted_players():
+            for _player in players_spd_desc:
                 if self.actions[_player] in switch_pokemon_actions:
                     self._playing_pokemon_state(_player).initialize()
                     self._switch_pokemon(_player, self.actions[_player])
 
+        # ポケモンの攻撃処理
         if self.actions[0] in move_actions or self.actions[1] in move_actions:
-            for _player in self._sorted_players():
+            for _player in players_spd_desc:
                 if self.actions[_player] in move_actions:
                     player_pokemon_state = self._playing_pokemon_state(_player)
-                    # プレイヤーのポケモンが瀕死の場合処理しない
+                    # 攻撃プレイヤーのポケモンが瀕死の場合処理しない
                     if player_pokemon_state.is_fainted():
                         continue
 
+                    # ダメージ処理
+                    target_plaer = 1 if _player == 0 else 0
                     target_pokemon_state = self._playing_pokemon_state(
-                        self._target_player(_player))
+                        target_plaer)
                     move = player_pokemon_state.pokemon.usable_moves[self.actions[_player]]
                     damage = self._calc_damage(
                         player_pokemon_state, target_pokemon_state, move)
@@ -207,6 +218,7 @@ class SingleBattle:
                         f"{player_pokemon_state.pokemon.name} -> {target_pokemon_state.pokemon.name}")
                     print(f"{move.name} {damage}ダメージ")
 
+        # アクションの初期化
         self._initialize_actions()
 
     def info(self):
@@ -219,31 +231,27 @@ class SingleBattle:
         print(
             f"{self._playing_pokemon_state(1).remaining_hp} / {self._playing_pokemon_state(1).max_hp}")
 
-    def _pokemons_to_states(self, _list: tuple[Pokemon, Pokemon, Pokemon]):
-        return [PokemonState(_pokemon) for _pokemon in _list]
-
-    def _switch_pokemon(self, _player: 0 | 1, _action: 5 | 6 | 7):
+    def _switch_pokemon(self, _player: 0 | 1, _action: 4 | 5 | 6):
         parties_index = _action - 5
 
         self.playing_pokemons[_player] = parties_index
 
-    def _target_player(self, _player: 0 | 1):
-        if _player == 0:
-            return 1
-        else:
-            return 0
-
-    def _sorted_players(self):
-        return sorted(
-            [0, 1], key=lambda x: self._playing_pokemon_state(x).get_speed(), reverse=True)
+    def _playing_pokemon_state(self, _player: 0 | 1):
+        return self.parties[_player][self.playing_pokemons[_player]]
 
     def _initialize_actions(self):
         self.actions = [None, None]
 
-    def _playing_pokemon_state(self, _player: 0 | 1):
-        return self.parties[_player][self.playing_pokemons[_player]]
-
     def _calc_damage(self, _self: PokemonState, _target: PokemonState, _move: Move):
+        def calc_compatibility_ratio(_compatibilities: list[tuple[int, float]], _enemy_types: list[int]) -> float:
+            compatibility_ratio = 1.00
+            for _compatibility in _compatibilities:
+                if _compatibility[0] in _enemy_types:
+                    compatibility_ratio = compatibility_ratio * \
+                        _compatibility[1]
+
+            return compatibility_ratio
+
         if _move.category == 0:
             return 0
 
@@ -254,7 +262,7 @@ class SingleBattle:
         critical_ratio = 1
         random_ratio = 1
         type_match_ratio = 1.5 if _move.type in _self.pokemon.types else 1
-        compatibility_ratio = self._calc_compatibility_ratio(
+        compatibility_ratio = calc_compatibility_ratio(
             _move.compatibilities, _target.pokemon.types)
         burn_ratio = 1
         m = 1
@@ -276,53 +284,3 @@ class SingleBattle:
         damage = half_down(step11 * m_protect)
 
         return damage
-
-        # for _player in self._sorted_players():
-        #     if self.actions[_player] in [5, 6]:
-        # if playler_0_speed > playler_1_speed:
-        #     self._calc_damage(self.playing_pokemons[0], self.playing_pokemons[1])
-
-        # def calc_ally_moves(self):
-        #     self.ally_moves = self._calc_moves(self.ally, self.enemy)
-
-        #     for _move in self.ally_moves:
-        #         print(f'{move_index_to_name(_move["index"])}: {_move["damage"]}')
-
-        # def calc_enemy_moves(self):
-        #     self.enemy_moves = self._calc_moves(self.enemy, self.ally)
-
-        #     for _move in self.enemy_moves:
-        #         print(f'{move_index_to_name(_move["index"])}: {_move["damage"]}')
-
-        # def set_move(self, _name: str, _player=0):
-        #     move = next(
-        #         (_move for _move in moves if _move["name"] == _name), None)
-        #     if move is None:
-        #         return
-
-        #     if _player == 0 and len(self.ally_confirmed_moves) <= 3:
-        #         self.ally_confirmed_moves.append(json2move(move))
-        #     elif _player == 1 and len(self.ally_confirmed_moves) <= 3:
-        #         self.enemy_confirmed_moves.append(json2move(move))
-
-        # def _calc_moves(self, _self: PokemonState, _target: PokemonState):
-        #     calculated_moves = []
-        #     for _move in _self.pokemon.moves:
-        #         damage = self._calc_damage(_self, _target, _move)
-
-        #         calculated_moves.append({
-        #             "index": _move.index,
-        #             "damage": damage
-        #         })
-
-        #     return sorted(
-        #         calculated_moves, key=lambda x: x["damage"], reverse=True)
-
-    def _calc_compatibility_ratio(self, _compatibilities: list[tuple[int, float]], _enemy_types: list[int]) -> float:
-        compatibility_ratio = 1.00
-        for _compatibility in _compatibilities:
-            if _compatibility[0] in _enemy_types:
-                compatibility_ratio = compatibility_ratio * \
-                    _compatibility[1]
-
-        return compatibility_ratio
