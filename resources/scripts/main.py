@@ -13,7 +13,7 @@ cinderace = Pokemon("エースバーン", {
     "a": 252,
     "s": 4,
 }, "A")
-cinderace.set_move("ニトロチャージ")
+cinderace.set_move("かえんボール")
 cinderace.set_move("とびひざげり")
 
 inteleon = Pokemon("インテレオン", {
@@ -25,10 +25,10 @@ inteleon.set_move("みずのはどう")
 inteleon.set_move("シャドーボール")
 
 party0 = (rillaboom, cinderace, inteleon)
-party1 = (rillaboom, cinderace, inteleon)
+party1 = (cinderace, rillaboom, inteleon)
 
 singleBattle = SingleBattle(party0, party1)
-singleBattle.set_action(0, 5)
-singleBattle.set_action(1, 6)
+singleBattle.set_action(0, 0)
+singleBattle.set_action(1, 0)
 singleBattle.advance_turn()
-print(singleBattle)
+singleBattle.info()

@@ -1,16 +1,13 @@
 from enum import Enum, auto
 
 
-class EternalStatusAilment(Enum):
+class StatusAilment(Enum):
     burn: auto()  # やけど
     freeze: auto()  # こおり
     paralysis: auto()  # まひ
     poison: auto()  # どく
     sleep: auto()  # ねむり
     bad_poison: auto()  # もうどく
-
-
-class TemporaryStatusAilment(Enum):
     confusion: auto()  # こんらん
     curse: auto()  # のろい
     encore: auto()  # アンコール
@@ -52,9 +49,14 @@ class TemporaryStatusAilment(Enum):
 
 
 class SingleBattleActions(Enum):
-    move1: 1
-    move2: 2
-    move3: 3
-    move4: 4
-    pokemon1: 5
-    pokemon2: 6
+    move1: 0
+    move2: 1
+    move3: 2
+    move4: 3
+    pokemon1: 4
+    pokemon2: 5
+    pokemon3: 6
+
+
+move_actions = [0, 1, 2, 3]
+switch_pokemon_actions = [4, 5, 6]

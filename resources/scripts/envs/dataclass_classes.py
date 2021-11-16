@@ -35,7 +35,7 @@ class StatsRank:
     spd: rank
     evasion: rank
     critical: three_times_rank
-    stockpile: three_times_rank
+    # stockpile: three_times_rank
 
     def __init__(self) -> None:
         self.atk = 0
@@ -45,5 +45,5 @@ class StatsRank:
         self.sp_df = 0
         self.spd = 0
         self.critical = 0
-        self.stockpile = 0
         self.evasion = 0
+        # self.stockpile = 0
