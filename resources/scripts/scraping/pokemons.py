@@ -110,8 +110,12 @@ while i <= max:
         abilities = []
         for tr in stats_anchor_trs:
             a = tr.find("a")
-            if a and a.get_text():
-                abilities.append(a.get_text().replace("*", ""))
+            if a is None:
+                continue
+
+            search = re.search(r"=\d+$", a["href"])
+            if search is not None:
+                abilities.append(int(search.group()[1:]))
 
         move_anchor = soup.select_one("#move_list")
         move_anchor_trs = move_anchor.find_all("tr")
@@ -133,6 +137,7 @@ while i <= max:
             "weight": weight,
             "evolutions": evolutions,
             "moves": moves,
+            "abilities": abilities,
             "base_stats": {
                 "hp": hp,
                 "atk": atk,

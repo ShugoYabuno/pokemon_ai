@@ -1,14 +1,15 @@
-from envs.pokemon import Pokemon, SingleBattle
+from envs.pokemon import SingleBattle, PokemonState
 
-rillaboom = Pokemon("ゴリランダー", {
+rillaboom = PokemonState("ゴリランダー", {
     "h": 252,
     "a": 252,
     "s": 4,
-}, "a")
+}, "A")
 rillaboom.set_move("ドラムアタック")
 rillaboom.set_move("じしん")
+print(rillaboom)
 
-cinderace = Pokemon("エースバーン", {
+cinderace = PokemonState("エースバーン", {
     "h": 252,
     "a": 252,
     "s": 4,
@@ -16,7 +17,7 @@ cinderace = Pokemon("エースバーン", {
 cinderace.set_move("かえんボール")
 cinderace.set_move("とびひざげり")
 
-inteleon = Pokemon("インテレオン", {
+inteleon = PokemonState("インテレオン", {
     "h": 252,
     "c": 252,
     "s": 4
@@ -28,6 +29,7 @@ party0 = (rillaboom, cinderace, inteleon)
 party1 = (cinderace, rillaboom, inteleon)
 
 singleBattle = SingleBattle(party0, party1)
+singleBattle.info()
 singleBattle.set_action(0, 0)
 singleBattle.set_action(1, 0)
 singleBattle.advance_turn()
