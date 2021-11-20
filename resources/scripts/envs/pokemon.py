@@ -194,8 +194,8 @@ class SingleBattle:
     actions: list[int, int]
     field_state: FieldState
 
-    move_actions = range(3)
-    switch_pokemon_actions = range(4, 6)
+    move_actions = list(range(4))
+    switch_pokemon_actions = list(range(4, 7))
 
     def __init__(self, _party0: list[tuple[PokemonState, PokemonState, PokemonState]], _party1: tuple[PokemonState, PokemonState, PokemonState]) -> None:
         self.parties = [_party0,
@@ -241,12 +241,14 @@ class SingleBattle:
                     if player_pokemon_state.is_fainted():
                         continue
 
+                    self._active_ability_when_move(
+                        _player, player_pokemon_state)
+
                     # ダメージ処理
                     target_plaer = 1 if _player == 0 else 0
                     target_pokemon_state = self._playing_pokemon_state(
                         target_plaer)
-                    move = player_pokemon_state.get_usable_move(
-                        self.actions[_player])
+                    move = self._player_move(_player)
                     damage = self._calc_damage(
                         player_pokemon_state, target_pokemon_state, move)
                     target_pokemon_state.receive_damage(damage)
@@ -259,11 +261,11 @@ class SingleBattle:
 
     def info(self):
         print("player0")
-        print(f"{self._playing_pokemon_state(0).name}")
+        print(self._playing_pokemon_state(0).name)
         print(
             f"{self._playing_pokemon_state(0).remaining_hp} / {self._playing_pokemon_state(0).max_hp}")
         print("player1")
-        print(f"{self._playing_pokemon_state(1).name}")
+        print(self._playing_pokemon_state(1).name)
         print(
             f"{self._playing_pokemon_state(1).remaining_hp} / {self._playing_pokemon_state(1).max_hp}")
         if self.field_state:
@@ -285,15 +287,27 @@ class SingleBattle:
             [0, 1], key=lambda x: self._playing_pokemon_state(x).get_speed(), reverse=True)
 
     def _switch_pokemon(self, _player: 0 | 1, _action: 4 | 5 | 6):
-        parties_index = _action - 5
+        parties_index = _action - 4
 
         self.playing_pokemons[_player] = parties_index
+        s = self._playing_pokemon_state(_player)
+        self._fanfare(s)
 
     def _playing_pokemon_state(self, _player: 0 | 1):
         return self.parties[_player][self.playing_pokemons[_player]]
 
     def _initialize_actions(self):
         self.actions = [None, None]
+
+    def _player_move(self, _player: 0 | 1):
+        return self._playing_pokemon_state(_player).get_usable_move(
+            self.actions[_player])
+
+    def _active_ability_when_move(self, _player: 0 | 1, _pokemon_state: PokemonState):
+        ability = _pokemon_state.get_ability_name_en()
+        if ability in ["libero", "protean"]:
+            m = self._player_move(_player)
+            _pokemon_state.types = [m.type]
 
     def _calc_damage(self, _self: PokemonState, _target: PokemonState, _move: Move):
         def calc_compatibility_ratio(_compatibilities: list[tuple[int, float]], _enemy_types: list[int]) -> float:
@@ -314,7 +328,7 @@ class SingleBattle:
         whether_ratio = 1
         critical_ratio = 1
         random_ratio = 1
-        type_match_ratio = 1.5 if _move.type in _self.base_info.types else 1
+        type_match_ratio = 1.5 if _move.type in _self.types else 1
         compatibility_ratio = calc_compatibility_ratio(
             _move.compatibilities, _target.base_info.types)
         burn_ratio = 1
