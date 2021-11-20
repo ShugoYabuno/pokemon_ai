@@ -14,6 +14,13 @@ class Move:
 
 
 @dataclass
+class Ability:
+    index: int
+    name: str
+    name_en: str
+
+
+@dataclass
 class Stats:
     hp: int
     atk: int

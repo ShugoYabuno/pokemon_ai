@@ -2,8 +2,9 @@ import json
 from math import floor
 from typing import Final
 from dataclasses import dataclass, field
-from .dataclass_classes import Stats, Move, StatsRank
-from .enum_classes import StatusAilment, Field
+from .dataclass_classes import Stats, Move, StatsRank, Ability
+from .enum_classes import StatusAilment, Field, Type
+from decimal import Decimal, ROUND_HALF_UP
 # from random import shuffle
 
 pokemons: Final = json.load(
@@ -19,11 +20,15 @@ def move_index_to_name(_index: int):
         (_move["name"] for _move in moves if _move["index"] == _index), None)
 
 
-def half_down(_number):
+def half_down(_number: float):
     if _number % 1 <= 0.5:
         return floor(_number)
     else:
         return int(_number + 0.5)
+
+
+def half_up(_number: float):
+    return Decimal(_number).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
 
 
 def json2move(_move: dict):
@@ -32,18 +37,12 @@ def json2move(_move: dict):
 
 
 @dataclass
-class Ability:
-    index: int
-    name: str
-    name_en: str
-
-
-@dataclass
 class BaseInfo:
     stats: Stats
     types: list[int]
     regal_abilities: list[Ability]
     regal_moves: list[Move]
+    usable_ability_index: int
 
     def __init__(self, _name: str, _effort: dict, _correction: str, _level=50):
         pokemon = next(
@@ -103,12 +102,26 @@ class BaseInfo:
 
             self.regal_abilities.append(Ability(
                 ability["index"], ability["name"], ability["name_en"]))
+        if len(self.regal_abilities) == 1:
+            self.usable_ability_index = 0
+        else:
+            self.usable_ability_index = None
 
     def _calculate_hp(self, _base_stats, _effort=0, _individual=31, _level=50):
         return floor((_base_stats * 2 + _individual + _effort / 4) * _level / 100 + _level + 10)
 
     def _calculate_stats(self, _base_stats, _effort=0, _correction=1.0, _individual=31, _level=50):
         return floor(((_base_stats * 2 + _individual + _effort / 4) * _level / 100 + 5) * _correction)
+
+    def set_ability(self, _ability_name):
+        self.usable_ability_index = next(
+            (i for i, a in enumerate(self.regal_abilities) if a.name == _ability_name), None)
+
+    def get_ability(self):
+        if self.usable_ability_index is None:
+            return None
+        else:
+            return self.regal_abilities[self.usable_ability_index]
 
 
 @dataclass
@@ -121,7 +134,7 @@ class PokemonState:
     types: list[int]
     stats_rank: StatsRank
     usable_move_indices: list[int]
-    usable_ability_index: int
+    ability: Ability
     eternal_status_ailments: list[StatusAilment]
     temporary_status_ailments: list[StatusAilment]
 
@@ -133,7 +146,7 @@ class PokemonState:
         self.remaining_hp = base_info.stats.hp
         self.eternal_status_ailments = []
         self.usable_move_indices = []
-        self.usable_ability_index = None
+        self._initialize_ability()
         self.initialize()
 
     def initialize(self):
@@ -152,9 +165,12 @@ class PokemonState:
     def is_fainted(self):
         return self.remaining_hp == 0
 
+    def _initialize_ability(self):
+        self.ability = self.base_info.get_ability()
+
     def set_ability(self, _ability_name):
-        self.usable_ability_index = next(
-            (i for i, a in enumerate(self.base_info.regal_abilities) if a.name == _ability_name), None)
+        self.base_info.set_ability(_ability_name)
+        self.ability = self.base_info.get_ability()
 
     def set_move(self, _move_name):
         index = next(
@@ -163,10 +179,11 @@ class PokemonState:
             self.usable_move_indices.append(index)
 
     def get_ability_name_en(self):
-        if self.usable_ability_index is None:
+        ability = self.base_info.get_ability()
+        if ability is None:
             return "unknown"
         else:
-            return self.base_info.regal_abilities[self.usable_ability_index].name_en
+            return ability.name_en
 
     def get_usable_move(self, _index: 0 | 1 | 2 | 3):
         return self.base_info.regal_moves[self.usable_move_indices[_index]]
@@ -209,7 +226,7 @@ class SingleBattle:
         players_spd_desc = self._get_players_spd_desc()
 
         for _player in players_spd_desc:
-            s = self._playing_pokemon_state(_player)
+            s = self._get_playing_pokemon_state(_player)
             self._fanfare(s)
 
     def set_action(self, _player: 0 | 1, _action: int):
@@ -229,14 +246,15 @@ class SingleBattle:
 
             for _player in players_spd_desc:
                 if self.actions[_player] in self.switch_pokemon_actions:
-                    self._playing_pokemon_state(_player).initialize()
+                    self._get_playing_pokemon_state(_player).initialize()
                     self._switch_pokemon(_player, self.actions[_player])
 
         # ポケモンの攻撃処理
         if self.actions[0] in self.move_actions or self.actions[1] in self.move_actions:
             for _player in players_spd_desc:
                 if self.actions[_player] in self.move_actions:
-                    player_pokemon_state = self._playing_pokemon_state(_player)
+                    player_pokemon_state = self._get_playing_pokemon_state(
+                        _player)
                     # 攻撃プレイヤーのポケモンが瀕死の場合処理しない
                     if player_pokemon_state.is_fainted():
                         continue
@@ -245,12 +263,11 @@ class SingleBattle:
                         _player, player_pokemon_state)
 
                     # ダメージ処理
-                    target_plaer = 1 if _player == 0 else 0
-                    target_pokemon_state = self._playing_pokemon_state(
-                        target_plaer)
-                    move = self._player_move(_player)
-                    damage = self._calc_damage(
-                        player_pokemon_state, target_pokemon_state, move)
+                    target_player = self._get_target_player(_player)
+                    target_pokemon_state = self._get_playing_pokemon_state(
+                        target_player)
+                    move = self._get_this_turn_move(_player)
+                    damage = self._calc_damage(_player, target_player)
                     target_pokemon_state.receive_damage(damage)
                     print(
                         f"{player_pokemon_state.name} -> {target_pokemon_state.name}")
@@ -261,65 +278,100 @@ class SingleBattle:
 
     def info(self):
         print("player0")
-        print(self._playing_pokemon_state(0).name)
+        print(self._get_playing_pokemon_state(0).name)
         print(
-            f"{self._playing_pokemon_state(0).remaining_hp} / {self._playing_pokemon_state(0).max_hp}")
+            f"{self._get_playing_pokemon_state(0).remaining_hp} / {self._get_playing_pokemon_state(0).max_hp}")
         print("player1")
-        print(self._playing_pokemon_state(1).name)
+        print(self._get_playing_pokemon_state(1).name)
+
         print(
-            f"{self._playing_pokemon_state(1).remaining_hp} / {self._playing_pokemon_state(1).max_hp}")
+            f"{self._get_playing_pokemon_state(1).remaining_hp} / {self._get_playing_pokemon_state(1).max_hp}")
         if self.field_state:
             print(f"フィールド: {self.field_state.field}")
 
     def _fanfare(self, _pokemon_state: PokemonState):
-        ability = _pokemon_state.get_ability_name_en()
-        if ability == "electric_surge":
+        if self._check_ability(_pokemon_state, "electric_surge"):
             self.field_state = FieldState(Field.electric, 5)
-        elif ability == "psychic_surge":
+        elif self._check_ability(_pokemon_state, "psychic_surge"):
             self.field_state = FieldState(Field.psychic, 5)
-        elif ability == "grassy_surge":
+        elif self._check_ability(_pokemon_state, "grassy_surge"):
             self.field_state = FieldState(Field.grass, 5)
-        elif ability == "misty_surge":
+        elif self._check_ability(_pokemon_state, "misty_surge"):
             self.field_state = FieldState(Field.mist, 5)
 
     def _get_players_spd_desc(self):
         return sorted(
-            [0, 1], key=lambda x: self._playing_pokemon_state(x).get_speed(), reverse=True)
+            [0, 1], key=lambda x: self._get_playing_pokemon_state(x).get_speed(), reverse=True)
+
+    def _get_target_player(self, _player: 0 | 1):
+        return 1 if _player == 0 else 0
 
     def _switch_pokemon(self, _player: 0 | 1, _action: 4 | 5 | 6):
         parties_index = _action - 4
 
         self.playing_pokemons[_player] = parties_index
-        s = self._playing_pokemon_state(_player)
+        s = self._get_playing_pokemon_state(_player)
         self._fanfare(s)
 
-    def _playing_pokemon_state(self, _player: 0 | 1):
+    def _get_playing_pokemon_state(self, _player: 0 | 1):
         return self.parties[_player][self.playing_pokemons[_player]]
+
+    def _check_ability(self, _pokemon_state: PokemonState, _ability_name: str):
+        return _pokemon_state.get_ability_name_en() == _ability_name
+
+    def _check_abilities(self, _pokemon_state: PokemonState, _ability_names: list[str]):
+        return _pokemon_state.get_ability_name_en() in _ability_names
 
     def _initialize_actions(self):
         self.actions = [None, None]
 
-    def _player_move(self, _player: 0 | 1):
-        return self._playing_pokemon_state(_player).get_usable_move(
+    def _get_this_turn_move(self, _player: 0 | 1):
+        return self._get_playing_pokemon_state(_player).get_usable_move(
             self.actions[_player])
 
     def _active_ability_when_move(self, _player: 0 | 1, _pokemon_state: PokemonState):
-        ability = _pokemon_state.get_ability_name_en()
-        if ability in ["libero", "protean"]:
-            m = self._player_move(_player)
+        if self._check_abilities(_pokemon_state, ["libero", "protean"]):
+            m = self._get_this_turn_move(_player)
             _pokemon_state.types = [m.type]
 
-    def _calc_damage(self, _self: PokemonState, _target: PokemonState, _move: Move):
-        def calc_compatibility_ratio(_compatibilities: list[tuple[int, float]], _enemy_types: list[int]) -> float:
-            compatibility_ratio = 1.00
-            for _compatibility in _compatibilities:
-                if _compatibility[0] in _enemy_types:
-                    compatibility_ratio = compatibility_ratio * \
-                        _compatibility[1]
+    def _calc_compatibility_ratio(self, _compatibilities: list[tuple[int, float]], _enemy_types: list[int]) -> float:
+        compatibility_ratio = 1.00
+        for _compatibility in _compatibilities:
+            if _compatibility[0] in _enemy_types:
+                compatibility_ratio = compatibility_ratio * \
+                    _compatibility[1]
 
-            return compatibility_ratio
+        return compatibility_ratio
 
-        if _move.category == 0:
+    def _calc_move_power(self, _player: 0 | 1):
+        move = self._get_this_turn_move(_player)
+        myself = self._get_playing_pokemon_state(_player)
+
+        if (myself.get_ability_name_en() == "fairy_aura" and Type(move.type) == Type.fairy) or\
+                (myself.get_ability_name_en() == "dark_aura" and Type(move.type) == Type.dark):
+            return half_up(move.power * 5448 / 4096)
+        else:
+            return move.power
+
+    def _calc_atk(self, _player: 0 | 1):
+        def under_one_third():
+            ps = self._get_playing_pokemon_state(_player)
+
+            return ps.remaining_hp * 3 <= ps.max_hp
+
+        move = self._get_this_turn_move(_player)
+        atk_pokemon_state = self._get_playing_pokemon_state(_player)
+        atk = atk_pokemon_state.stats.atk if move.category == 1 else atk_pokemon_state.stats.sp_atk
+        if self._check_ability(atk_pokemon_state, "torrent") and under_one_third():
+            return half_up(atk * 6144 / 4096)
+        else:
+            return atk
+
+    def _calc_damage(self, _player: 0 | 1, _target: 0 | 1):
+        atk_pokemon_state = self._get_playing_pokemon_state(_player)
+        target = self._get_playing_pokemon_state(_target)
+        move = self._get_this_turn_move(_player)
+        if move.category == 0:
             return 0
 
         level = 50
@@ -328,26 +380,28 @@ class SingleBattle:
         whether_ratio = 1
         critical_ratio = 1
         random_ratio = 1
-        type_match_ratio = 1.5 if _move.type in _self.types else 1
-        compatibility_ratio = calc_compatibility_ratio(
-            _move.compatibilities, _target.base_info.types)
+        type_match_ratio = 1.5 if move.type in atk_pokemon_state.types else 1
+        compatibility_ratio = self._calc_compatibility_ratio(
+            move.compatibilities, target.base_info.types)
         burn_ratio = 1
         m = 1
         m_protect = 1
-        atk = _self.base_info.stats.atk if _move.category == 1 else _self.base_info.stats.sp_atk
-        df = _target.base_info.stats.df if _move.category == 1 else _target.base_info.stats.sp_df
+        move_power = self._calc_move_power(_player)
+        atk = self._calc_atk(_player)
+        df = target.base_info.stats.df if move.category == 1 else target.base_info.stats.sp_df
 
-        step1 = floor(floor(level * 2 / 5 + 2) * _move.power * atk / df)
-        step2 = floor(step1 / 50 + 2)
-        step3 = half_down(step2 * range_ratio)
-        step4 = half_down(step3 * parental_bond_ratio)
-        step5 = half_down(step4 * whether_ratio)
-        step6 = half_down(step5 * critical_ratio)
-        step7 = floor(step6 * random_ratio)
-        step8 = half_down(step7 * type_match_ratio)
-        step9 = floor(step8 * compatibility_ratio)
-        step10 = half_down(step9 * burn_ratio)
-        step11 = half_down(step10 * m)
-        damage = half_down(step11 * m_protect)
+        i1 = floor(level * 2 / 5 + 2)
+        i2 = floor(i1 * move_power * atk / df)
+        i3 = floor(i2 / 50 + 2)
+        i4 = half_down(i3 * range_ratio)
+        i5 = half_down(i4 * parental_bond_ratio)
+        i6 = half_down(i5 * whether_ratio)
+        i7 = half_down(i6 * critical_ratio)
+        i8 = floor(i7 * random_ratio)
+        i9 = half_down(i8 * type_match_ratio)
+        i10 = floor(i9 * compatibility_ratio)
+        i11 = half_down(i10 * burn_ratio)
+        i12 = half_down(i11 * m)
+        damage = half_down(i12 * m_protect)
 
         return damage
