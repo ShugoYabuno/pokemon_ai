@@ -362,10 +362,17 @@ class SingleBattle:
         move = self._get_this_turn_move(_player)
         atk_pokemon_state = self._get_playing_pokemon_state(_player)
         atk = atk_pokemon_state.stats.atk if move.category == 1 else atk_pokemon_state.stats.sp_atk
-        if self._check_ability(atk_pokemon_state, "torrent") and under_one_third():
+        if self._check_ability(atk_pokemon_state, "torrent") and under_one_third() and Type(move.type) == Type.water:
             return half_up(atk * 6144 / 4096)
         else:
             return atk
+
+    def _calc_df(self, _target: 0 | 1):
+        move = self._get_this_turn_move(_target)
+        df_pokemon_state = self._get_playing_pokemon_state(_target)
+        df = df_pokemon_state.stats.atk if move.category == 1 else df_pokemon_state.stats.sp_atk
+
+        return df
 
     def _calc_damage(self, _player: 0 | 1, _target: 0 | 1):
         atk_pokemon_state = self._get_playing_pokemon_state(_player)
@@ -388,7 +395,7 @@ class SingleBattle:
         m_protect = 1
         move_power = self._calc_move_power(_player)
         atk = self._calc_atk(_player)
-        df = target.base_info.stats.df if move.category == 1 else target.base_info.stats.sp_df
+        df = self._calc_df(_target)
 
         i1 = floor(level * 2 / 5 + 2)
         i2 = floor(i1 * move_power * atk / df)
