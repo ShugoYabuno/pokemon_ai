@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from .enum_classes import Field
 
 
 @dataclass
@@ -54,3 +55,14 @@ class StatsRank:
         self.critical = 0
         self.evasion = 0
         # self.stockpile = 0
+
+
+@dataclass
+class Information:
+    moves: list[Move]
+
+
+@dataclass
+class FieldState:
+    field: Field
+    remaining_turn: int

@@ -1,8 +1,8 @@
 import json
 from math import floor
 from typing import Final
-from dataclasses import dataclass, field
-from .dataclass_classes import Stats, Move, StatsRank, Ability
+from dataclasses import dataclass
+from .dataclass_classes import Stats, Move, StatsRank, Ability, Information, FieldState
 from .enum_classes import StatusAilment, Field, Type
 from decimal import Decimal, ROUND_HALF_UP
 # from random import shuffle
@@ -190,20 +190,6 @@ class PokemonState:
 
 
 @dataclass
-class Information:
-    moves: list[Move]
-
-
-action = 0 | 1 | 2 | 3 | 4 | 5
-
-
-@dataclass
-class FieldState:
-    field: Field
-    remaining_turn: int
-
-
-@dataclass
 class SingleBattle:
     parties: list[tuple[PokemonState, PokemonState, PokemonState]]
     playing_pokemons: list[int, int]
@@ -367,10 +353,10 @@ class SingleBattle:
         else:
             return atk
 
-    def _calc_df(self, _target: 0 | 1):
-        move = self._get_this_turn_move(_target)
+    def _calc_df(self, _player: 0 | 1, _target: 0 | 1):
+        move = self._get_this_turn_move(_player)
         df_pokemon_state = self._get_playing_pokemon_state(_target)
-        df = df_pokemon_state.stats.atk if move.category == 1 else df_pokemon_state.stats.sp_atk
+        df = df_pokemon_state.stats.df if move.category == 1 else df_pokemon_state.stats.sp_df
 
         return df
 
@@ -395,7 +381,7 @@ class SingleBattle:
         m_protect = 1
         move_power = self._calc_move_power(_player)
         atk = self._calc_atk(_player)
-        df = self._calc_df(_target)
+        df = self._calc_df(_player, _target)
 
         i1 = floor(level * 2 / 5 + 2)
         i2 = floor(i1 * move_power * atk / df)

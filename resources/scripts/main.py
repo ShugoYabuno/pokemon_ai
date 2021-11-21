@@ -18,7 +18,7 @@ c = PokemonState("インテレオン", {
     "h": 12,
     "c": 252,
     "s": 252
-}, "A")
+}, "C")
 c.set_move("なみのり")
 c.set_ability("げきりゅう")
 
