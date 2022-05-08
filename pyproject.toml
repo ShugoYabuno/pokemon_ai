@@ -2,7 +2,7 @@
 name = "pokemon-ai"
 version = "0.1.0"
 description = ""
-authors = ["ShugoYabuno <shugo.ybn@gmai.com>"]
+authors = ["ShugoYabuno <shugo.ybn@gmail.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.9"
