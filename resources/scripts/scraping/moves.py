@@ -61,7 +61,7 @@ while i <= max:
     priority_search = re.search(r"優先度:\+\d", effect)
     priority = int(priority_search.group()[-1:]) if priority_search else 0
 
-    compatibilities = []
+    effectivities = []
 
     type_chart = soup.find("table", class_="type_chart")
 
@@ -71,13 +71,13 @@ while i <= max:
 
         for (_type, _effective) in zip(type_tds, compatibility_tds):
             if _effective.find("span") and _effective.find("span").get_text() == "●":
-                compatibilities.append(
+                effectivities.append(
                     [int(re.search(r"\d+", _type["class"][0]).group()), 2])
             if _effective.find("span") and _effective.find("span").get_text() == "▲":
-                compatibilities.append(
+                effectivities.append(
                     [int(re.search(r"\d+", _type["class"][0]).group()), 0.5])
             if _effective.find("span") and _effective.find("span").get_text() == "×":
-                compatibilities.append(
+                effectivities.append(
                     [int(re.search(r"\d+", _type["class"][0]).group()), 0])
 
     move = {
@@ -92,7 +92,7 @@ while i <= max:
         "target": target,
         # "effect": effect,
         "priority": priority,
-        "compatibilities": compatibilities
+        "effectivities": effectivities
     }
     moves.append(move)
     i += 1

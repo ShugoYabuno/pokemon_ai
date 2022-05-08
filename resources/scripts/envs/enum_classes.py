@@ -74,3 +74,9 @@ class Type(Enum):
     dragon = 15
     dark = 16
     fairy = 17
+
+
+class MoveCategory(Enum):
+    status = 0
+    physical = 1
+    special = 2

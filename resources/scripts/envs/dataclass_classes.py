@@ -11,7 +11,7 @@ class Move:
     pp: int
     category: int
     type: int
-    compatibilities: list[tuple[int, float]]
+    effectivities: list[tuple[int, float]]
 
 
 @dataclass

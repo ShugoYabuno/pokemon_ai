@@ -1,33 +1,36 @@
 from envs.pokemon import SingleBattle, PokemonState
 
-a = PokemonState("ゼルネアス", {
-    "c": 252,
-    "s": 252,
-}, "c")
-a.set_move("ムーンフォース")
-a.set_ability("フェアリーオーラ")
+# a = PokemonState("サンダー", {
+#     "c": 252,
+#     "s": 252,
+#     "h": 4
+# }, "S")
+# a.set_move("ぼうふう")
+# a.set_move("はねやすめ")
+# a.set_move("ねっぷう")
+# a.set_move("ボルトチェンジ")
+# a.set_ability("せいでんき")
 
-b = PokemonState("クレセリア", {
-    "h": 252,
-    "b": 252,
-}, "B")
-b.set_move("れいとうビーム")
-b.set_ability("ふゆう")
+# b = PokemonState("ランドロス", {
+#     "h": 252,
+#     "b": 252,
+#     "s": 4
+# }, "B")
+# b.set_move("じしん")
+# b.set_move("そらをとぶ")
+# b.set_move("がんせきふうじ")
+# b.set_move("つるぎのまい")
+# b.set_ability("いかく")
 
-c = PokemonState("インテレオン", {
-    "h": 12,
-    "c": 252,
-    "s": 252
-}, "C")
-c.set_move("なみのり")
-c.set_ability("げきりゅう")
+zacian = PokemonState("ザシアンf", {}, "A")
+zamazenta = PokemonState("ザマゼンタf", {}, "A")
+# print(zacian)
+# print(zamazenta)
 
-party0 = (c, b, c)
-party1 = (b, a, c)
+
+party0 = (zacian, zacian, zacian)
+party1 = (zamazenta, zamazenta, zamazenta)
 
 singleBattle = SingleBattle(party0, party1)
-singleBattle.info()
-singleBattle.set_action(0, 0)
-singleBattle.set_action(1, 0)
-singleBattle.advance_turn()
-singleBattle.info()
+print(singleBattle._most_effective_move(0))
+print(singleBattle._most_effective_move(1))
