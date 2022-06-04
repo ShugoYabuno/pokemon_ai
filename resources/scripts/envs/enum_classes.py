@@ -55,6 +55,13 @@ class Field(Enum):
     mist = auto()
 
 
+class Weather(Enum):
+    sunny_day = auto()
+    heavy_rain = auto()
+    sandstorm = auto()
+    hailstorm = auto()
+
+
 class Type(Enum):
     normal = 0
     fighting = 1

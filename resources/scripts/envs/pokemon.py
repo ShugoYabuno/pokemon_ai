@@ -1,18 +1,24 @@
 import json
 from math import floor
-from typing import Final, Literal, Union
+import os
+from typing import Final, Literal
 from dataclasses import dataclass
-from .dataclass_classes import Stats, Move, StatsRank, Ability, Information, FieldState
-from .enum_classes import StatusAilment, Field, Type
+from .dataclass_classes import Stats, Move, StatsRank, Ability, Information, FieldState, WeatherState
+from .enum_classes import StatusAilment, Field, Type, Weather
 from decimal import Decimal, ROUND_HALF_UP
 # from random import shuffle
 
+
+def relative_path(path: str):
+    return os.path.join(os.path.dirname(__file__), path)
+
+
 pokemons: Final = json.load(
-    open("./resources/data/original/poketetsu/pokemons.json", "r"))
+    open(relative_path("../../data/original/poketetsu/pokemons.json"), "r"))
 moves: Final = json.load(
-    open("./resources/data/original/poketetsu/moves.json", "r"))
+    open(relative_path("../../data/original/poketetsu/moves.json"), "r"))
 abilities: Final = json.load(
-    open("./resources/data/original/poketetsu/abilities.json", "r"))
+    open(relative_path("../../data/original/poketetsu/abilities.json"), "r"))
 
 
 def move_index_to_name(_index: int):
@@ -131,6 +137,9 @@ class PokemonBaseInfo:
         else:
             return self.regal_abilities[self.usable_ability_index]
 
+    def get_stats(self):
+        return self.stats
+
 
 @dataclass
 class PokemonState:
@@ -146,9 +155,9 @@ class PokemonState:
     eternal_status_ailments: list[StatusAilment]
     temporary_status_ailments: list[StatusAilment]
 
-    def __init__(self, _name: str, _effort: dict, _correction: str) -> None:
-        self.name = _name
-        base_info = PokemonBaseInfo(_name, _effort, _correction)
+    def __init__(self, name: str, effort={}, correction="") -> None:
+        self.name = name
+        base_info = PokemonBaseInfo(name, effort, correction)
         self.base_info = base_info
         self.max_hp = base_info.stats.hp
         self.remaining_hp = base_info.stats.hp
@@ -163,8 +172,23 @@ class PokemonState:
         self.temporary_status_ailments = []
         self.stats_rank = StatsRank()
 
-    def get_speed(self):
-        return self.base_info.stats.spd
+    def _calc_rank(self, base_stats: int, rank: int):
+        return floor(((max(rank, 0) + 2) / (-min(rank, 0) + 2)) * base_stats)
+
+    def get_atk(self):
+        return self._calc_rank(self.stats.atk, self.stats_rank.atk)
+
+    def get_df(self):
+        return self._calc_rank(self.stats.df, self.stats_rank.df)
+
+    def get_sp_atk(self):
+        return self._calc_rank(self.stats.sp_atk, self.stats_rank.sp_atk)
+
+    def get_sp_df(self):
+        return self._calc_rank(self.stats.sp_df, self.stats_rank.sp_df)
+
+    def get_spd(self):
+        return self._calc_rank(self.stats.spd, self.stats_rank.spd)
 
     def receive_damage(self, _damage: int):
         calced = self.remaining_hp - _damage
@@ -199,26 +223,53 @@ class PokemonState:
     def get_regal_moves(self):
         return self.base_info.regal_moves
 
+    def update_stats_rank(self, atk=0, df=0, sp_atk=0, sp_df=0, spd=0):
+        if atk:
+            self.stats_rank.add_atk(atk)
+        if df:
+            self.stats_rank.add_df(df)
+        if sp_atk:
+            self.stats_rank.add_sp_atk(sp_atk)
+        if sp_df:
+            self.stats_rank.add_sp_df(sp_df)
+        if spd:
+            self.stats_rank.add_spd(spd)
+
+    def get_stats(self):
+        print(self.stats_rank)
+        return {
+            "atk": self.get_atk(),
+            "df": self.get_df(),
+            "sp_atk": self.get_sp_atk(),
+            "sp_df": self.get_sp_df(),
+            "spd": self.get_spd()
+        }
+
+def equal_ability(pokemon_state: PokemonState, ability_name: str):
+    return pokemon_state.get_ability_name_en() == ability_name
 
 @dataclass
 class SingleBattle:
-    parties: list[tuple[PokemonState, PokemonState, PokemonState]]
+    parties: list[list[PokemonState]]
     playing_pokemons: list[int, int]
     information: tuple[Information, Information]
     actions: list[int, int]
+    weather_state: WeatherState
     field_state: FieldState
 
     move_actions = list(range(4))
     switch_pokemon_actions = list(range(4, 7))
+    PlayerIndexes = [0, 1]
     Player = Literal[0, 1]
     MoveActions = Literal[0, 1, 2, 3]
     SwitchPokemonActions = Literal[0, 1, 2, 3]
 
-    def __init__(self, _party0: list[tuple[PokemonState, PokemonState, PokemonState]], _party1: tuple[PokemonState, PokemonState, PokemonState]) -> None:
+    def __init__(self, _party0: list[PokemonState], _party1: list[PokemonState]) -> None:
         self.parties = [_party0,
                         _party1]
         self.playing_pokemons = [0, 0]
         self.information = ((), ())
+        self.weather_state = None
         self.field_state = None
         self._initialize_actions()
 
@@ -284,7 +335,7 @@ class SingleBattle:
         # アクションの初期化
         self._initialize_actions()
 
-    def info(self):
+    def info(self, stats=False):
         print("player0")
         print(self._get_playing_pokemon_state(0).name)
         print(
@@ -294,22 +345,49 @@ class SingleBattle:
 
         print(
             f"{self._get_playing_pokemon_state(1).remaining_hp} / {self._get_playing_pokemon_state(1).max_hp}")
+        if self.weather_state:
+            print(f"天候: {self.weather_state.weather}")
         if self.field_state:
             print(f"フィールド: {self.field_state.field}")
 
+        if stats:
+            for i in [0, 1]:
+                ps = self._get_playing_pokemon_state(i)
+                print("--------------------")
+                print(ps.name)
+                print(ps.get_stats())
+
+    def most_effective_move(self, attacker: Player):
+        move_damages = self._get_moves_order_of_effectiveness(attacker)
+
+        return move_damages[0]
+
+    # region private methods
     def _fanfare(self, _pokemon_state: PokemonState):
-        if self._equal_ability(_pokemon_state, "electric_surge"):
+        if equal_ability(_pokemon_state, "drizzle"):
+            self.weather_state = WeatherState(Weather.heavy_rain, 5)
+        if equal_ability(_pokemon_state, "drought"):
+            self.weather_state = WeatherState(Weather.sunny_day, 5)
+        if equal_ability(_pokemon_state, "snow_warning"):
+            self.weather_state = WeatherState(Weather.hailstorm, 5)
+        if equal_ability(_pokemon_state, "sand_stream"):
+            self.weather_state = WeatherState(Weather.sandstorm, 5)
+        if equal_ability(_pokemon_state, "electric_surge"):
             self.field_state = FieldState(Field.electric, 5)
-        elif self._equal_ability(_pokemon_state, "psychic_surge"):
+        elif equal_ability(_pokemon_state, "psychic_surge"):
             self.field_state = FieldState(Field.psychic, 5)
-        elif self._equal_ability(_pokemon_state, "grassy_surge"):
+        elif equal_ability(_pokemon_state, "grassy_surge"):
             self.field_state = FieldState(Field.grass, 5)
-        elif self._equal_ability(_pokemon_state, "misty_surge"):
+        elif equal_ability(_pokemon_state, "misty_surge"):
             self.field_state = FieldState(Field.mist, 5)
+        elif equal_ability(_pokemon_state, "intrepid_sword"):
+            _pokemon_state.update_stats_rank(atk=1)
+        elif equal_ability(_pokemon_state, "dauntless_shield"):
+            _pokemon_state.update_stats_rank(df=1)
 
     def _get_players_spd_desc(self):
         return sorted(
-            [0, 1], key=lambda x: self._get_playing_pokemon_state(x).get_speed(), reverse=True)
+            [0, 1], key=lambda x: self._get_playing_pokemon_state(x).get_spd(), reverse=True)
 
     def _get_target_player(self, _player: Player):
         return 1 if _player == 0 else 0
@@ -327,9 +405,6 @@ class SingleBattle:
     def _get_playing_pokemon_states(self):
         return [self._get_playing_pokemon_state(i) for i in [0, 1]]
 
-    def _equal_ability(self, _pokemon_state: PokemonState, _ability_name: str):
-        return _pokemon_state.get_ability_name_en() == _ability_name
-
     def _includes_abilities(self, _pokemon_state: PokemonState, _ability_names: list[str]):
         return _pokemon_state.get_ability_name_en() in _ability_names
 
@@ -345,23 +420,33 @@ class SingleBattle:
             m = self._get_this_turn_move(_player)
             _pokemon_state.types = [m.type]
 
-    def _calc_effective_ratio(self, effectivities: list[tuple[int, float]], _enemy_types: list[int]) -> float:
+    def _calc_effective_ratio(self, effectivities: list[tuple[int, float]], df_pokemon_state: PokemonState) -> float:
+        enemy_types = df_pokemon_state.types
         effective_ratio = 1.00
         for _effective in effectivities:
-            if _effective[0] in _enemy_types:
+            if _effective[0] in enemy_types:
                 effective_ratio = effective_ratio * _effective[1]
+
+        if equal_ability(df_pokemon_state, "prism_armor"):
+            effective_ratio = effective_ratio * 3 / 4
 
         return effective_ratio
 
     def _calc_move_power(self, player: Player, move: Move = None):
         move = move if move else self._get_this_turn_move(player)
         myself = self._get_playing_pokemon_state(player)
+        target = self._get_playing_pokemon_state(self._get_target_player(player))
+
+        correction = 4096
 
         if (myself.get_ability_name_en() == "fairy_aura" and Type(move.type) == Type.fairy) or\
                 (myself.get_ability_name_en() == "dark_aura" and Type(move.type) == Type.dark):
-            return half_up(move.power * 5448 / 4096)
-        else:
-            return move.power
+            if target.get_ability_name_en() == "aura_break":
+                correction = 3075
+            else:
+                correction = 5448
+
+        return half_up(move.power * correction / 4096)
 
     def _calc_atk(self, _player: Player, move: Move = None):
         def under_one_third():
@@ -371,8 +456,8 @@ class SingleBattle:
 
         move = move if move else self._get_this_turn_move(_player)
         atk_pokemon_state = self._get_playing_pokemon_state(_player)
-        atk = atk_pokemon_state.stats.atk if move.category == 1 else atk_pokemon_state.stats.sp_atk
-        if self._equal_ability(atk_pokemon_state, "torrent") and under_one_third() and Type(move.type) == Type.water:
+        atk = atk_pokemon_state.get_atk() if move.category == 1 else atk_pokemon_state.get_sp_atk()
+        if equal_ability(atk_pokemon_state, "torrent") and under_one_third() and Type(move.type) == Type.water:
             return half_up(atk * 6144 / 4096)
         else:
             return atk
@@ -380,9 +465,18 @@ class SingleBattle:
     def _calc_df(self, _player: Player, _target: Player, move: Move = None):
         move = move if move else self._get_this_turn_move(_player)
         df_pokemon_state = self._get_playing_pokemon_state(_target)
-        df = df_pokemon_state.stats.df if move.category == 1 else df_pokemon_state.stats.sp_df
+        df = df_pokemon_state.get_df() if move.category == 1 else df_pokemon_state.get_sp_df()
 
         return df
+
+    def _calc_weather_ratio(self, move: Move):
+        if self.weather_state is None:
+            return 1
+        elif (self.weather_state.weather == Weather.heavy_rain and Type(move.type) == Type.water) or\
+                (self.weather_state.weather == Weather.sunny_day and Type(move.type) == Type.fire):
+            return 1.5
+        else:
+            return 1
 
     def _calc_damage(self, player: Player, target: Player, move: Move = None):
         atk_pokemon_state = self._get_playing_pokemon_state(player)
@@ -394,12 +488,12 @@ class SingleBattle:
         level = 50
         range_ratio = 1
         parental_bond_ratio = 1
-        whether_ratio = 1
+        whether_ratio = self._calc_weather_ratio(move)
         critical_ratio = 1
         random_ratio = 1
         type_match_ratio = 1.5 if move.type in atk_pokemon_state.types else 1
         effective_ratio = self._calc_effective_ratio(
-            move.effectivities, df_pokemon_state.base_info.types)
+            move.effectivities, df_pokemon_state)
         burn_ratio = 1
         m = 1
         m_protect = 1
@@ -442,15 +536,15 @@ class SingleBattle:
         atk_regal_moves = self._get_playing_pokemon_state(
             attacker).base_info.regal_moves
         defender = self._get_target_player(attacker)
+        defender_pokemon_state = self._get_playing_pokemon_state(defender)
 
         move_damage = []
         for move in atk_regal_moves:
             damage = self._calc_damage(attacker, defender, move=move)
-            move_damage.append([move, damage])
+            accuracy = move.accuracy / 100 if move.accuracy else 1
+            expectation = damage * accuracy
+            defender_hp = defender_pokemon_state.max_hp
+            move_damage.append([move, expectation / defender_hp])
 
         return sorted(move_damage, key=lambda x: x[1], reverse=True)
-
-    def _most_effective_move(self, attacker: Player):
-        move_damages = self._get_moves_order_of_effectiveness(attacker)
-
-        return move_damages[0]
+    # endregion

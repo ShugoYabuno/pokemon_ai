@@ -1,13 +1,11 @@
 {
-  "python.pythonPath": "/Users/ShugoYabuno/Library/Caches/pypoetry/virtualenvs/pokemon-ai-zON1WaIG-py3.9/bin/python",
+  "python.pythonPath": "/Users/ShugoYabuno/Library/Caches/pypoetry/virtualenvs/pokemon-ai-zON1WaIG-py3.10/bin/python",
   "python.linting.flake8Enabled": true,
   "python.formatting.provider": "autopep8",
   "[python]": {
     "editor.formatOnSave": true,
     "editor.formatOnPaste": true,
-    "editor.formatOnType": false,
+    "editor.formatOnType": false
   },
-  "python.linting.flake8Args": [
-    "--ignore=E501"
-  ]
+  "python.linting.flake8Args": ["--ignore=E501"]
 }
