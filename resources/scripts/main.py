@@ -3,6 +3,8 @@ import copy
 import matplotlib.pyplot as plt
 import numpy as np
 
+plt.rcParams['figure.subplot.left'] = 0.17
+
 mewtwo = PokemonState("ミュウツー")
 lugia = PokemonState("ルギア")
 ho_oh = PokemonState("ホウオウ")
@@ -73,7 +75,6 @@ for x in pokemons:
         receive_damage_ratio = singleBattle.most_effective_move(1)
         speed_correction_value = 1.2
 
-        # sum_damage += (inflict_damage_ratio[1] * (speed_correction_value * inflict_damage_ratio[1])**step(x_spd - y_spd)) / (receive_damage_ratio[1] * ((speed_correction_value * receive_damage_ratio[1])**step(y_spd - x_spd)))
         sum_damage += (inflict_damage_ratio[1] * speed_correction_value**step(x_spd - y_spd)) / (receive_damage_ratio[1] * speed_correction_value**step(y_spd - x_spd))
 
     sum.append([x, sum_damage / (len(pokemons) - 1)])
