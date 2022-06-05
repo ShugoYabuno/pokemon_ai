@@ -1,16 +1,15 @@
 import json
 from math import floor
-import os
 from typing import Final, Literal
 from dataclasses import dataclass
 from .dataclass_classes import Stats, Move, StatsRank, Ability, Information, FieldState, WeatherState
 from .enum_classes import StatusAilment, Field, Type, Weather
 from decimal import Decimal, ROUND_HALF_UP
-# from random import shuffle
+from os import path
 
 
-def relative_path(path: str):
-    return os.path.join(os.path.dirname(__file__), path)
+def relative_path(file_path: str):
+    return path.join(path.dirname(__file__), file_path)
 
 
 pokemons: Final = json.load(
