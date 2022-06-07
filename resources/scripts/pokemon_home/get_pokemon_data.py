@@ -28,7 +28,6 @@ def get_latest_season():
             body = json.loads(response.read())
             latest_season = sorted([int(season) for season in list(body["list"].keys())], reverse=True)[0]
             latest_season_rules = body["list"][str(latest_season)]
-            print(latest_season_rules)
 
             for rule_id in latest_season_rules.keys():
                 rule = latest_season_rules[rule_id]["rule"]
@@ -51,7 +50,7 @@ def write_pokemon_home_data(data):
 def get_pokemon_data():
     rule_id, rst, ts2 = get_latest_season()
 
-    data = {}
+    pokemons = []
     for page in list(range(1, 6)):
         try:
             req = urllib.request.Request(f"https://resource.pokemon-home.com/battledata/ranking/{rule_id}/{rst}/{ts2}/pdetail-{page}")
@@ -69,18 +68,16 @@ def get_pokemon_data():
             with urllib.request.urlopen(req) as response:
                 body = json.loads(response.read())
 
-                with open("./resources/data/original/poketetsu/pokemons.json", "w") as f:
-                    json.dump(body, f, ensure_ascii=False)
-                print(body)
-                data = {
-                    **data,
-                    **body
-                }
+                for pokemon_id in body.keys():
+                    pokemons.append({
+                        "id": int(pokemon_id),
+                        "forms": body[pokemon_id]
+                    })
 
         except urllib.error.URLError as e:
             print(e.reason)
 
-    write_pokemon_home_data(data)
+    write_pokemon_home_data(pokemons)
 
 
 get_pokemon_data()
