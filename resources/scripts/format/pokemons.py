@@ -48,11 +48,11 @@ for pokemon_home_pokemon in pokemon_home_pokemons:
         if pokemon is None:
             continue
 
-        moves = [{"id": waza["id"], "utilization_rate": float(waza["val"]) / 100} for waza in data_by_form["temoti"]["waza"]]
+        useful_moves = [{"id": waza["id"], "utilization_rate": float(waza["val"]) / 100} for waza in data_by_form["temoti"]["waza"]]
 
         formatted_pokemons.append({
             **pokemon,
-            "moves": moves
+            "useful_moves": useful_moves
         })
 
 with open(relative_path("../../data/formatted/pokemons.json"), "w") as f:

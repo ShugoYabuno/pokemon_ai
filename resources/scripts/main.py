@@ -34,17 +34,18 @@ lunala = PokemonState("ルナアーラ")
 necrozma = PokemonState("ネクロズマ")
 necrozma_s = PokemonState("ネクロズマs")
 necrozma_m = PokemonState("ネクロズマm")
-zacian = PokemonState("ザシアンf")
-zacian.set_ability("ふとうのけん")
-zamazenta = PokemonState("ザマゼンタf")
-zamazenta.set_ability("ふくつのたて")
+# zacian = PokemonState("ザシアンf")
+# zacian.set_ability("ふとうのけん")
+# zamazenta = PokemonState("ザマゼンタf")
+# zamazenta.set_ability("ふくつのたて")
+eternatus = PokemonState("ムゲンダイナ")
 calyrex_w = PokemonState("バドレックスw")
 calyrex_b = PokemonState("バドレックスb")
 
 
 pokemons = [mewtwo, lugia, ho_oh, groudon, kyogre, rayquaza,
             dialga, palkia, giratina, zekrom, reshiiam, kyurem, xerneas, yveltal, zygarde,
-            solgaleo, lunala, necrozma_s, necrozma_m, zacian, zamazenta, calyrex_w, calyrex_b]
+            solgaleo, lunala, necrozma_s, necrozma_m, eternatus, calyrex_w, calyrex_b]
 
 def step(a):
     if a > 0:
@@ -60,7 +61,7 @@ def zscore(x, axis=None):
     return zscore
 
 
-speed_correction_values = [1.5, 1.0]
+speed_correction_values = [1.3, 1.0]
 labels = []
 color = "rgby"
 height=0.3

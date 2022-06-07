@@ -13,7 +13,7 @@ def relative_path(file_path: str):
 
 
 pokemons: Final = json.load(
-    open(relative_path("../../data/original/poketetsu/pokemons.json"), "r"))
+    open(relative_path("../../data/formatted/pokemons.json"), "r"))
 moves: Final = json.load(
     open(relative_path("../../data/original/poketetsu/moves.json"), "r"))
 abilities: Final = json.load(
@@ -244,8 +244,10 @@ class PokemonState:
             "spd": self.get_spd()
         }
 
+
 def equal_ability(pokemon_state: PokemonState, ability_name: str):
     return pokemon_state.get_ability_name_en() == ability_name
+
 
 @dataclass
 class SingleBattle:
