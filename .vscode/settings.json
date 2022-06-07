@@ -8,5 +8,5 @@
     "editor.formatOnType": false
   },
   "python.linting.flake8Args": ["--ignore=E501"],
-  "cSpell.words": ["poketetsu", "waza"]
+  "cSpell.words": ["poketetsu", "waza", "dataclass", "pokemons"]
 }
